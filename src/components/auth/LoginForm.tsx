@@ -58,7 +58,7 @@ export default function LoginForm() {
     }
 
     return (
-        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+        <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 {error && (
                     <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md border border-red-200">
@@ -76,7 +76,7 @@ export default function LoginForm() {
                             {...form.register('email')}
                             id="email"
                             placeholder="nombre@empresa.com"
-                            className="flex h-10 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 pl-9 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
+                            className="flex h-10 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 pl-9 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={isLoading}
                         />
                     </div>
@@ -96,7 +96,7 @@ export default function LoginForm() {
                             id="password"
                             type="password"
                             placeholder="••••••••"
-                            className="flex h-10 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 pl-9 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50 dark:border-gray-800"
+                            className="flex h-10 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 pl-9 text-sm placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent disabled:cursor-not-allowed disabled:opacity-50"
                             disabled={isLoading}
                         />
                     </div>
@@ -106,7 +106,7 @@ export default function LoginForm() {
                 </div>
 
                 <button
-                    className="inline-flex h-10 w-full items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 dark:bg-white dark:text-black hover:dark:bg-gray-200"
+                    className="inline-flex h-10 w-full items-center justify-center rounded-md bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
                     type="submit"
                     disabled={isLoading}
                 >
