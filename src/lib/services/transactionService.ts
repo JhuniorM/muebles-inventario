@@ -20,37 +20,51 @@ export const transactionService = {
             throw new Error('No se pudo encontrar la transacción')
         }
 
-        // 2. Obtener el stock actual del producto
-        const { data: producto, error: prodError } = await supabase
+        // 2. Obtener el producto para saber su nombre y tipo
+        const { data: originalProd, error: prodError } = await supabase
             .from('productos')
-            .select('stock')
+            .select('nombre, tipo, stock')
             .eq('id', transaction.producto_id)
             .single()
 
-        if (prodError || !producto) {
+        if (prodError || !originalProd) {
             throw new Error('No se pudo encontrar el producto asociado')
         }
 
-        // 3. Calcular el nuevo stock (Reversión)
-        // Si fue VENTA: sumamos lo que se quitó
-        // Si fue COMPRA: restamos lo que se aumentó
-        let nuevoStock = producto.stock
+        // 3. Determinar qué producto actualizar (Mueble -> busca Casco)
+        let targetProdId = transaction.producto_id
+        let stockActual = originalProd.stock
+
+        if (originalProd.tipo === 'mueble') {
+            const { data: casco } = await supabase
+                .from('productos')
+                .select('id, stock')
+                .eq('tipo', 'casco')
+                .ilike('nombre', originalProd.nombre)
+                .single()
+
+            if (casco) {
+                targetProdId = casco.id
+                stockActual = casco.stock
+            }
+        }
+
+        // 4. Calcular el nuevo stock (Reversión)
+        let nuevoStock = stockActual
         if (transaction.tipo === 'venta') {
             nuevoStock += transaction.cantidad
         } else if (transaction.tipo === 'compra') {
             nuevoStock -= transaction.cantidad
         }
 
-        // 4. Ejecutar actualizaciones en secuencia (Idealmente sería una transacción SQL)
-        // Primero actualizamos el stock
+        // 5. Ejecutar actualizaciones
         const { error: updateError } = await supabase
             .from('productos')
             .update({ stock: nuevoStock })
-            .eq('id', transaction.producto_id)
+            .eq('id', targetProdId)
 
         if (updateError) throw new Error('Error al revertir el stock')
 
-        // Finalmente borramos la transacción
         const { error: deleteError } = await supabase
             .from('transacciones')
             .delete()
@@ -76,29 +90,49 @@ export const transactionService = {
 
         if (fetchErr || !oldTx) throw new Error('No se encontró la transacción original')
 
-        // 2. REVERSIÓN: Devolver el stock a su estado previo como si la transacción nunca hubiera ocurrido
-        const { data: oldProd } = await supabase.from('productos').select('stock').eq('id', oldTx.producto_id).single()
+        // 2. REVERSIÓN: Devolver el stock a su estado previo
+        const { data: oldProd } = await supabase.from('productos').select('nombre, tipo, stock').eq('id', oldTx.producto_id).single()
         if (oldProd) {
+            let targetRevertId = oldTx.producto_id
+            let currentStock = oldProd.stock
+
+            if (oldProd.tipo === 'mueble') {
+                const { data: casco } = await supabase.from('productos').select('id, stock').eq('tipo', 'casco').ilike('nombre', oldProd.nombre).single()
+                if (casco) {
+                    targetRevertId = casco.id
+                    currentStock = casco.stock
+                }
+            }
+
             const revertedStock = oldTx.tipo === 'venta'
-                ? oldProd.stock + oldTx.cantidad  // Si fue venta, devolvemos lo quitado
-                : oldProd.stock - oldTx.cantidad  // Si fue compra, restamos lo aumentado
-            await supabase.from('productos').update({ stock: revertedStock }).eq('id', oldTx.producto_id)
+                ? currentStock + oldTx.cantidad
+                : currentStock - oldTx.cantidad
+            await supabase.from('productos').update({ stock: revertedStock }).eq('id', targetRevertId)
         }
 
-        // 3. APLICACIÓN: Calcular el nuevo stock con los datos actualizados
-        // Consideramos que el ID del producto puede haber cambiado también
+        // 3. APLICACIÓN: Aplicar el nuevo cambio de stock
         let targetProdId = newData.producto_id || oldTx.producto_id
-        const { data: newProd } = await supabase.from('productos').select('stock').eq('id', targetProdId).single()
+        const { data: newProd } = await supabase.from('productos').select('nombre, tipo, stock').eq('id', targetProdId).single()
 
         if (newProd) {
-            // Calculamos el stock final basado en el tipo de transacción
+            let targetApplyId = targetProdId
+            let currentStock = newProd.stock
+
+            if (newProd.tipo === 'mueble') {
+                const { data: casco } = await supabase.from('productos').select('id, stock').eq('tipo', 'casco').ilike('nombre', newProd.nombre).single()
+                if (casco) {
+                    targetApplyId = casco.id
+                    currentStock = casco.stock
+                }
+            }
+
             const newStock = newData.tipo === 'venta'
-                ? newProd.stock - newData.cantidad // Venta: quitamos stock
-                : newProd.stock + newData.cantidad // Compra: añadimos stock
-            await supabase.from('productos').update({ stock: newStock }).eq('id', targetProdId)
+                ? currentStock - newData.cantidad
+                : currentStock + newData.cantidad
+            await supabase.from('productos').update({ stock: newStock }).eq('id', targetApplyId)
         }
 
-        // 4. Actualizar el registro de la transacción en la base de datos
+        // 4. Actualizar el registro
         const { error: updateErr } = await supabase
             .from('transacciones')
             .update(newData)

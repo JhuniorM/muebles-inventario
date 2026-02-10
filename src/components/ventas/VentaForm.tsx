@@ -69,12 +69,11 @@ export default function VentaForm({ initialData, onSuccess, onCancel }: VentaFor
     const fetchData = async () => {
         setLoading(true)
         try {
-            // Solo traemos productos que tengan stock disponible
+            // Traemos muebles, telas y cascos para cruzar stock
             const { data: prodData } = await supabase
                 .from('productos')
                 .select('*')
-                .in('tipo', ['mueble', 'tela'])
-                .gt('stock', 0)
+                .in('tipo', ['mueble', 'tela', 'casco'])
 
             const { data: cliData } = await supabase
                 .from('clientes')
@@ -114,6 +113,30 @@ export default function VentaForm({ initialData, onSuccess, onCancel }: VentaFor
         if (!isQuickAddClient && !clienteId) return
         if (isQuickAddProduct && !quickAddProductName) return
         if (isQuickAddClient && !quickAddClientName) return
+
+        // --- NUEVA LÓGICA DE VALIDACIÓN DE STOCK (MUEBLE-CASCO) ---
+        const selectedProd = productos.find(p => p.id === productoId)
+        let stockDisponible = 0
+        let targetStockProdId = productoId
+
+        if (selectedProd?.tipo === 'mueble') {
+            // Buscar casco con el mismo nombre
+            const casco = productos.find(p => p.tipo === 'casco' && p.nombre.toLowerCase() === selectedProd.nombre.toLowerCase())
+            if (!casco) {
+                alert(`Error: No existe un "CASCO" registrado para el mueble "${selectedProd.nombre}". Debe crear el casco primero.`)
+                return
+            }
+            stockDisponible = casco.stock
+            targetStockProdId = casco.id
+        } else if (selectedProd) {
+            stockDisponible = selectedProd.stock
+        }
+
+        if (numCantidad > stockDisponible && !isQuickAddProduct) {
+            alert(`Stock insuficiente. Disponible: ${stockDisponible}`)
+            return
+        }
+        // ---------------------------------------------------------
 
         setSubmitting(true)
         try {
@@ -181,15 +204,11 @@ export default function VentaForm({ initialData, onSuccess, onCancel }: VentaFor
 
                 if (txError) throw txError
 
-                // PASO 5: Actualizar el stock del producto (solo para nuevas ventas, updateTransaction ya maneja stock)
-                const targetProdId = isQuickAddProduct ? finalProductoId : productoId
-                const prod = productos.find(p => p.id === targetProdId)
-                const currentStock = prod ? prod.stock : 0
-
+                // PASO 5: Actualizar el stock (Mueble descuenta Casco, Tela descuenta Tela)
                 await supabase
                     .from('productos')
-                    .update({ stock: currentStock - numCantidad })
-                    .eq('id', targetProdId)
+                    .update({ stock: stockDisponible - numCantidad })
+                    .eq('id', targetStockProdId)
             }
 
             if (onSuccess) onSuccess()
@@ -288,9 +307,21 @@ export default function VentaForm({ initialData, onSuccess, onCancel }: VentaFor
                                 className={`w-full p-2.5 border rounded-lg focus:ring-2 focus:ring-green-500 bg-white shadow-sm transition-colors ${!productoId ? 'border-orange-300 bg-orange-50/30' : 'border-gray-300'}`}
                             >
                                 <option value="">{selectedCategory ? `Seleccionar ${currentCategoryName.toLowerCase()}...` : 'Elija una categoría arriba...'}</option>
-                                {filteredProductos.map(p => (
-                                    <option key={p.id} value={p.id}>{p.nombre} (Stock: {p.stock})</option>
-                                ))}
+                                {filteredProductos
+                                    .filter(p => p.tipo !== 'casco') // No mostrar cascos directamente para venta
+                                    .map(p => {
+                                        // Calcular stock real (si es mueble, buscar casco)
+                                        let displayStock = p.stock
+                                        if (p.tipo === 'mueble') {
+                                            const casco = productos.find(c => c.tipo === 'casco' && c.nombre.toLowerCase() === p.nombre.toLowerCase())
+                                            displayStock = casco ? casco.stock : 0
+                                        }
+                                        return (
+                                            <option key={p.id} value={p.id}>
+                                                {p.nombre} ({p.tipo === 'mueble' ? `Cascos: ${displayStock}` : `Stock: ${displayStock}`})
+                                            </option>
+                                        )
+                                    })}
                             </select>
                         )}
                     </div>

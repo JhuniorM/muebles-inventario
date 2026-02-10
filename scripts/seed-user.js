@@ -12,8 +12,8 @@ if (!supabaseUrl || !supabaseServiceKey) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 async function createAdminUser() {
-    const email = 'admin@muebles.com';
-    const password = 'Admin123!';
+    const email = 'prueba@muebles.com';
+    const password = 'prueba';
 
     console.log(`Attempting to create user: ${email}`);
 

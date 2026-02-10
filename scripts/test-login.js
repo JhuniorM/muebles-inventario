@@ -12,8 +12,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 async function testLogin() {
-    const email = 'admin@muebles.com';
-    const password = 'Admin123!';
+    const email = 'prueba@muebles.com';
+    const password = 'prueba';
 
     console.log(`Attempting to login with: ${email}`);
 
