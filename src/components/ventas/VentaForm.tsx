@@ -205,16 +205,22 @@ export default function VentaForm({ initialData, onSuccess, onCancel }: VentaFor
                 if (txError) throw txError
 
                 // PASO 5: Actualizar el stock (Mueble descuenta Casco, Tela descuenta Tela)
-                await supabase
+                const { error: stockError } = await supabase
                     .from('productos')
                     .update({ stock: stockDisponible - numCantidad })
                     .eq('id', targetStockProdId)
+
+                if (stockError) {
+                    console.error('Error updating stock:', stockError)
+                    throw new Error(`Venta registrada pero hubo un error al actualizar el stock: ${stockError.message}`)
+                }
             }
 
             if (onSuccess) onSuccess()
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error registering sale:', error)
-            alert(initialData ? 'Error al actualizar la venta' : 'Error al registrar la venta')
+            const errorMsg = error.message || (initialData ? 'Error al actualizar la venta' : 'Error al registrar la venta')
+            alert(`${initialData ? 'Error al actualizar:' : 'Error al registrar:'} ${errorMsg}`)
         } finally {
             setSubmitting(false)
         }
